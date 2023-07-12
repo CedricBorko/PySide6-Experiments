@@ -1,7 +1,17 @@
-from enum import IntFlag
 import sys
-from PySide6.QtWidgets import QApplication, QPushButton, QWidget, QVBoxLayout, QGridLayout
-from PySide6.QtGui import QColor, QPainter, QPaintEvent, QEnterEvent, QMouseEvent, QBrush, QPen, QPainterPath, QFontMetrics, QFont, QKeySequence
+from PySide6.QtWidgets import QApplication, QPushButton, QWidget, QGridLayout
+from PySide6.QtGui import (
+    QColor,
+    QPainter,
+    QPaintEvent,
+    QMouseEvent,
+    QBrush,
+    QPen,
+    QPainterPath,
+    QFontMetrics,
+    QFont,
+    QKeySequence,
+)
 from PySide6.QtCore import Qt, QRect, QPoint, QEvent, QSize, QPropertyAnimation, QEasingCurve
 
 from utils import load_svg, draw_svg
@@ -119,6 +129,7 @@ class Button(QPushButton):
     def set_svg(self, svg_name: str, alternate: bool = False) -> None:
         if alternate:
             self._alternate_svg = load_svg(svg_name)
+            self.setCheckable(self.isCheckable() or alternate)
         else:
             self._svg = load_svg(svg_name)
 
@@ -292,11 +303,9 @@ def main():
 
     b1 = Button("Zoom in", "zoom-in")
     b1.primary_color = QColor("#34495e")
-    b1.clicked.connect(lambda: print("B1"))
 
     b2 = Button("Zoom out", "zoom-out")
     b2.primary_color = QColor("#34495e")
-    b1.setShortcut(QKeySequence())
 
     b3 = Button("Test", "zap")
     b3.primary_color = QColor("#f26957")
@@ -305,8 +314,11 @@ def main():
     b4.primary_color = QColor("#3265d1")
 
     b5 = Button("Test")
+
     b6 = Button("Test", "chevron-down")
+    b6.set_svg("chevron-up", True)
     b6.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+
     b7 = Button("Datei auswählen", "file-csv")
     b7.primary_color = QColor("#af51cf")
     b4.clicked.connect(lambda: b7.set_error(not b7._error, "Falscher Dateityp!"))
