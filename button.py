@@ -35,6 +35,7 @@ class Button(QPushButton):
 
         self._svg = load_svg(svg_name) if svg_name is not None else None
         self._alternate_svg = load_svg(svg_name_alternate) if svg_name_alternate is not None else None
+        if self._alternate_svg: self.setCheckable(True)
 
         self._hovered = False
         self._pressed = False
