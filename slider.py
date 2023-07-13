@@ -3,6 +3,8 @@ from PySide6.QtCore import Qt, QPoint, QRect, QSize, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QBrush, QPainter, QPaintEvent, QFontMetrics, QFont, QMouseEvent, QWheelEvent, QResizeEvent
 
 from button import Button
+
+
 class Slider(QWidget):
     primary_color: QColor = QColor("#008f9b")
     secondary_color: QColor = QColor("#d3d3d3")
@@ -36,6 +38,8 @@ class Slider(QWidget):
         self._hovered = False
         self._pressed = False
 
+        self._suffix = ""
+
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
     def contains(self, value: float) -> bool:
@@ -44,12 +48,19 @@ class Slider(QWidget):
     def range(self) -> tuple[float, float]:
         return self._minimum, self._maximum
 
-    def extent(self) -> float:
-        return self.maximum() - self.minimum()
-
     def set_range(self, minimum: float, maximum: float) -> None:
         self.set_minimum(minimum)
         self.set_maximum(maximum)
+
+    def extent(self) -> float:
+        return self.maximum() - self.minimum()
+
+    def suffix(self) -> str:
+        return self._suffix
+
+    def set_suffix(self, suffix: str) -> None:
+        self._suffix = suffix
+        self.update()
 
     def minimum(self) -> float:
         return self._minimum
@@ -82,12 +93,12 @@ class Slider(QWidget):
         if self.decimals() == 0:
             return str(int(self._value))
         return str(round(self._value, self.decimals()))
-    
+
     def __text_minimum(self) -> str:
         if self.decimals() == 0:
             return str(int(self._minimum))
         return str(round(self._minimum, self.decimals()))
-    
+
     def __text_maximum(self) -> str:
         if self.decimals() == 0:
             return str(int(self._maximum))
@@ -132,7 +143,8 @@ class Slider(QWidget):
     def sizeHint(self) -> QSize:
         width, height = self.get_text_metrics(self.__text())
 
-        if self._show_range: height *= 2
+        if self._show_range:
+            height *= 2
         if self._orientation == Qt.Orientation.Horizontal:
             return QSize(
                 max(self.padding_h, self.thumb_radius) * 2 + width,
@@ -141,35 +153,29 @@ class Slider(QWidget):
 
     def spacing(self) -> float:
         return max(int(self._show_text) * self.gap, self.thumb_radius)
-    
+
     def get_text_metrics(self, text: str) -> QSize:
         metrics = QFontMetrics(self.font())
-        return metrics.horizontalAdvance(text), metrics.height()
+        return metrics.horizontalAdvance(text + self.suffix()), metrics.height()
 
     def __minimum_text_rect(self) -> QRect:
-        if not self._show_range: return QRect(0, 0, 0, 0)
+        if not self._show_range:
+            return QRect(0, 0, 0, 0)
         width, height = self.get_text_metrics(self.__text_minimum())
         if self._orientation == Qt.Orientation.Horizontal:
-            return QRect(
-                self.padding_h,
-                self.__track_rect().bottom() + self.spacing(),
-                width, height
-            )
+            return QRect(self.padding_h, self.__track_rect().bottom() + self.spacing(), width, height)
 
     def __maximum_text_rect(self) -> QRect:
-        if not self._show_range: return QRect(0, 0, 0, 0)
+        if not self._show_range:
+            return QRect(0, 0, 0, 0)
         width, height = self.get_text_metrics(self.__text_maximum())
         if self._orientation == Qt.Orientation.Horizontal:
-            return QRect(
-                self.__track_rect().right() - width,
-                self.__track_rect().bottom() + self.spacing(),
-                width, height
-            )
+            return QRect(self.__track_rect().right() - width, self.__track_rect().bottom() + self.spacing(), width, height)
 
     def __text_rect(self) -> QRect:
         if not self._show_text:
             return QRect(0, 0, 0, 0)
-        
+
         width, height = self.get_text_metrics(self.__text())
         x = max(self.padding_h, self.thumb_radius) + (self.value() - self.minimum()) / self.extent() * (
             self.width() - max(self.padding_h, self.thumb_radius) * 2
@@ -242,6 +248,8 @@ class Slider(QWidget):
         if self.mouse_over_handle(event.position().toPoint()) and event.buttons() == Qt.MouseButton.LeftButton:
             self._pressed = True
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
+        elif self.__track_rect().contains(event.position().toPoint()):
+            self.set_value(self.__transform_position_to_value(event.position().toPoint()))
 
         return super().mousePressEvent(event)
 
@@ -275,13 +283,13 @@ class Slider(QWidget):
 
         painter.setPen(self.text_color)
         painter.setFont(self.font())
-        painter.drawText(self.__text_rect(), Qt.AlignmentFlag.AlignCenter, self.__text())
+        painter.drawText(self.__text_rect(), Qt.AlignmentFlag.AlignCenter, self.__text() + self.suffix())
 
         if self._show_range:
             painter.setPen(self.text_color.lighter(200))
 
-            painter.drawText(self.__minimum_text_rect(), Qt.AlignmentFlag.AlignCenter, self.__text_minimum())
-            painter.drawText(self.__maximum_text_rect(), Qt.AlignmentFlag.AlignCenter, self.__text_maximum())
+            painter.drawText(self.__minimum_text_rect(), Qt.AlignmentFlag.AlignCenter, self.__text_minimum() + self.suffix())
+            painter.drawText(self.__maximum_text_rect(), Qt.AlignmentFlag.AlignCenter, self.__text_maximum() + self.suffix())
 
         painter.setPen(Qt.PenStyle.NoPen)
 
@@ -295,7 +303,7 @@ class Slider(QWidget):
         painter.drawEllipse(self.__thumb_rect())
 
         return super().paintEvent(event)
-
+    
 
 import sys
 from PySide6.QtWidgets import QApplication
@@ -305,23 +313,34 @@ def main():
     app = QApplication(sys.argv)
     w = QWidget()
     w.setLayout(QVBoxLayout())
-    b = Button(svg_name="unlock", svg_name_alternate="lock")
-    b.primary_color = QColor("#af51cf")
-    b.border_radius = 8, 8, 8, 8
+    b = Button(svg_name="volume-x", svg_name_alternate="volume")
+    b.setChecked(True)
+    b.set_uniform_border_radius(200)
+
+    s0 = Slider()
+    s0.set_suffix("%")
+    s0.set_range_text_visible(False)
+
     h = QHBoxLayout()
     h.setAlignment(Qt.AlignmentFlag.AlignLeft)
-    
-    s0 = Slider()
-    s1 = Slider()
-    s1.setFont(QFont("Expressway", 10, QFont.Weight.Bold))
-    s1.track_height = 4
-    s1.set_range(2018, 2023)
-    s1.primary_color = QColor("#af51cf")
-    h.addWidget(b)
-    h.addWidget(s1)
 
-    b.clicked.connect(lambda: s1.setEnabled(not s1.isEnabled()))
-    w.layout().addWidget(s0)
+    h.addWidget(b)
+    h.addWidget(s0)
+
+    def on_volume_changed(volume: int) -> None:
+        b.setChecked(volume != 0)
+
+    def on_button_clicked(checked: bool) -> None:
+        if not checked:
+            b.stored_volume = s0.value()
+            s0.set_value(0)
+        else:
+            s0.set_value(b.stored_volume if hasattr(b, "stored_volume") else s0.extent() // 2)
+        b.update()
+
+    s0.value_changed.connect(on_volume_changed)
+    b.clicked.connect(on_button_clicked)
+
     w.layout().addLayout(h)
     w.show()
     sys.exit(app.exec())
